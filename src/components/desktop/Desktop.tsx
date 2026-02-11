@@ -8,6 +8,7 @@ import { Notepad } from './apps/Notepad'
 import { FolderView, FolderItem } from './apps/FolderView'
 import { Chat } from './apps/Chat'
 import { CompetitiveResearch } from './apps/CompetitiveResearch'
+import { TranscriptAnalyzer } from './apps/TranscriptAnalyzer'
 import { useState } from 'react'
 
 const INSTALL_GUIDE_CONTENT = `# SentryOS Install Guide
@@ -110,6 +111,23 @@ function DesktopContent() {
     })
   }
 
+  const openTranscriptAnalyzer = () => {
+    openWindow({
+      id: 'transcript-analyzer',
+      title: 'Transcript Analyzer',
+      icon: '📝',
+      x: 220,
+      y: 100,
+      width: 600,
+      height: 600,
+      minWidth: 450,
+      minHeight: 450,
+      isMinimized: false,
+      isMaximized: false,
+      content: <TranscriptAnalyzer />
+    })
+  }
+
   const openAgentsFolder = () => {
     const agentsFolderItems: FolderItem[] = [
       {
@@ -165,28 +183,12 @@ function DesktopContent() {
       {/* Desktop icons area - z-10 to ensure it's above windows container */}
       <div className="absolute top-4 left-4 flex flex-col gap-2 z-10" onClick={(e) => e.stopPropagation()}>
         <DesktopIcon
-          id="install-guide"
-          label="Install Guide"
+          id="transcript-analyzer"
+          label="Transcript"
           icon="document"
-          onDoubleClick={openInstallGuide}
-          selected={selectedIcon === 'install-guide'}
-          onSelect={() => setSelectedIcon('install-guide')}
-        />
-        <DesktopIcon
-          id="agents-folder"
-          label="Agents"
-          icon="folder"
-          onDoubleClick={openAgentsFolder}
-          selected={selectedIcon === 'agents-folder'}
-          onSelect={() => setSelectedIcon('agents-folder')}
-        />
-        <DesktopIcon
-          id="chat"
-          label="Chat"
-          icon="chat"
-          onDoubleClick={openChatWindow}
-          selected={selectedIcon === 'chat'}
-          onSelect={() => setSelectedIcon('chat')}
+          onDoubleClick={openTranscriptAnalyzer}
+          selected={selectedIcon === 'transcript-analyzer'}
+          onSelect={() => setSelectedIcon('transcript-analyzer')}
         />
       </div>
 
