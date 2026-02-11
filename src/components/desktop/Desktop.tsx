@@ -7,6 +7,7 @@ import { DesktopIcon } from './DesktopIcon'
 import { Notepad } from './apps/Notepad'
 import { FolderView, FolderItem } from './apps/FolderView'
 import { Chat } from './apps/Chat'
+import { CompetitiveResearch } from './apps/CompetitiveResearch'
 import { useState } from 'react'
 
 const INSTALL_GUIDE_CONTENT = `# SentryOS Install Guide
@@ -92,8 +93,33 @@ function DesktopContent() {
     })
   }
 
+  const openCompetitiveResearch = () => {
+    openWindow({
+      id: 'competitive-research',
+      title: 'Competitive Research',
+      icon: '📊',
+      x: 180,
+      y: 60,
+      width: 650,
+      height: 550,
+      minWidth: 450,
+      minHeight: 400,
+      isMinimized: false,
+      isMaximized: false,
+      content: <CompetitiveResearch />
+    })
+  }
+
   const openAgentsFolder = () => {
-    const agentsFolderItems: FolderItem[] = []
+    const agentsFolderItems: FolderItem[] = [
+      {
+        id: 'competitive-research',
+        name: 'Competitive Research',
+        type: 'app',
+        icon: 'chat',
+        onOpen: openCompetitiveResearch,
+      }
+    ]
 
     openWindow({
       id: 'agents-folder',
