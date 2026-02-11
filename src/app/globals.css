@@ -52,18 +52,18 @@
 :root {
   --radius: 0.25rem;
 
-  /* Sentry Desktop Dark Theme */
-  --background: #1a1625;
-  --foreground: #e8e4f0;
-  --desktop-bg: #0f0c14;
-  --window-bg: #1e1a2a;
-  --window-header: #2a2438;
-  --taskbar-bg: #15121d;
+  /* Hunter Green Theme */
+  --background: #1a2520;
+  --foreground: #e8f0ed;
+  --desktop-bg: #0f1612;
+  --window-bg: #1e2a25;
+  --window-header: #2a3832;
+  --taskbar-bg: #15211c;
 
-  --card: #1e1a2a;
-  --card-foreground: #e8e4f0;
-  --popover: #1e1a2a;
-  --popover-foreground: #e8e4f0;
+  --card: #1e2a25;
+  --card-foreground: #e8f0ed;
+  --popover: #1e2a25;
+  --popover-foreground: #e8f0ed;
 
   /* Sage Green as primary */
   --primary: #87A96B;
@@ -73,8 +73,8 @@
   --secondary: #3d4a30;
   --secondary-foreground: #c4d4b0;
 
-  --muted: #2a2438;
-  --muted-foreground: #9086a3;
+  --muted: #2a3832;
+  --muted-foreground: #90a398;
 
   /* Accent - Sage Green variant */
   --accent: #9DC88D;
@@ -132,7 +132,7 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #1e1a2a;
+  background: #1e2a25;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -149,7 +149,7 @@
   font-size: 1.75rem;
   font-weight: 700;
   margin-bottom: 1rem;
-  color: #e8e4f0;
+  color: #e8f0ed;
   border-bottom: 1px solid #3d4a30;
   padding-bottom: 0.5rem;
 }
@@ -185,7 +185,7 @@
 }
 
 .markdown-content code {
-  background: #2a2438;
+  background: #2a3832;
   padding: 0.125rem 0.375rem;
   border-radius: 0.25rem;
   font-size: 0.875rem;
@@ -193,7 +193,7 @@
 }
 
 .markdown-content pre {
-  background: #2a2438;
+  background: #2a3832;
   padding: 1rem;
   border-radius: 0.375rem;
   overflow-x: auto;
@@ -203,7 +203,7 @@
 .markdown-content pre code {
   background: transparent;
   padding: 0;
-  color: #e8e4f0;
+  color: #e8f0ed;
 }
 
 .markdown-content a {
@@ -220,7 +220,7 @@
   padding-left: 1rem;
   margin-left: 0;
   margin-bottom: 0.75rem;
-  color: #9086a3;
+  color: #90a398;
 }
 
 /* Chat markdown styling */
