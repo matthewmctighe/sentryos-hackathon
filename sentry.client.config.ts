@@ -7,6 +7,9 @@ Sentry.init({
   // Adjust this value in production as necessary.
   tracesSampleRate: 1.0,
 
+  // Enable structured logging
+  enableLogs: true,
+
   // Setting this option to true will print useful information to the console while you're setting up Sentry.
   debug: false,
 
@@ -23,5 +26,11 @@ Sentry.init({
       maskAllText: true,
       blockAllMedia: true,
     }),
+    Sentry.browserTracingIntegration(),
+    // Capture console errors and warnings
+    Sentry.consoleLoggingIntegration({ levels: ["warn", "error"] }),
   ],
+
+  // Enable distributed tracing for API calls
+  tracePropagationTargets: ["localhost", /^https:\/\/.*\.vercel\.app/],
 });

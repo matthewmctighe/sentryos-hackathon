@@ -7,6 +7,12 @@ Sentry.init({
   // Adjust this value in production as necessary.
   tracesSampleRate: 1.0,
 
+  // Enable structured logging
+  enableLogs: true,
+
   // Setting this option to true will print useful information to the console while you're setting up Sentry.
   debug: false,
+
+  // Enable distributed tracing for external API calls
+  tracePropagationTargets: ["localhost", "https://api.gong.io"],
 });

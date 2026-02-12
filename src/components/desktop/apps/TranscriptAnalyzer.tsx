@@ -1,37 +1,25 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Send, Loader2, Bot } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import * as Sentry from '@sentry/nextjs'
 
-// Mock data - replace with actual Gong API integration
-const gongMembers = [
-  { id: '1', name: 'Sarah Chen' },
-  { id: '2', name: 'Michael Rodriguez' },
-  { id: '3', name: 'Emily Watson' },
-  { id: '4', name: 'James Kim' },
-]
+interface GongUser {
+  id: string
+  name: string
+  email: string
+}
 
-const gongCalls = {
-  '1': [
-    { id: 'call-1-1', title: 'Q4 Sales Review - Acme Corp', date: '2024-02-08' },
-    { id: 'call-1-2', title: 'Product Demo - TechStart Inc', date: '2024-02-07' },
-  ],
-  '2': [
-    { id: 'call-2-1', title: 'Customer Success Check-in', date: '2024-02-08' },
-    { id: 'call-2-2', title: 'Enterprise Deal Discussion', date: '2024-02-06' },
-  ],
-  '3': [
-    { id: 'call-3-1', title: 'Partnership Strategy Call', date: '2024-02-09' },
-    { id: 'call-3-2', title: 'Team Sync - Q1 Goals', date: '2024-02-05' },
-  ],
-  '4': [
-    { id: 'call-4-1', title: 'Feature Request Review', date: '2024-02-08' },
-    { id: 'call-4-2', title: 'Client Onboarding - GlobalTech', date: '2024-02-04' },
-  ],
+interface GongCall {
+  id: string
+  title: string
+  date: string
+  duration: number
+  url: string
 }
 
 const techConferences = [
@@ -46,48 +34,114 @@ const techConferences = [
 ]
 
 export function TranscriptAnalyzer() {
+  const [gongMembers, setGongMembers] = useState<GongUser[]>([])
+  const [gongCalls, setGongCalls] = useState<GongCall[]>([])
   const [selectedMember, setSelectedMember] = useState('')
   const [selectedCall, setSelectedCall] = useState('')
   const [selectedConference, setSelectedConference] = useState('')
-  const [transcript, setTranscript] = useState('')
-  const [analysis, setAnalysis] = useState('')
+  const [userPrompt, setUserPrompt] = useState('')
+  const [agentResponse, setAgentResponse] = useState('')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true)
+  const [isLoadingCalls, setIsLoadingCalls] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleMemberChange = (memberId: string) => {
+  // Fetch Gong users on component mount
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setIsLoadingUsers(true)
+        setError(null)
+        Sentry.logger.info('Fetching Gong users from client')
+        const response = await fetch('/api/gong/users')
+        if (!response.ok) {
+          throw new Error('Failed to fetch users')
+        }
+        const data = await response.json()
+        setGongMembers(data.users || [])
+        Sentry.logger.info('Successfully loaded Gong users', { count: data.users?.length || 0 })
+      } catch (err) {
+        setError('Failed to load Gong users. Please check your API key configuration.')
+        Sentry.logger.error('Error fetching users', { error: err instanceof Error ? err.message : 'Unknown' })
+        Sentry.captureException(err)
+      } finally {
+        setIsLoadingUsers(false)
+      }
+    }
+
+    fetchUsers()
+  }, [])
+
+  const handleMemberChange = async (memberId: string) => {
     setSelectedMember(memberId)
     setSelectedCall('') // Reset call selection when member changes
-    setTranscript('') // Clear transcript
-    setAnalysis('') // Clear analysis
+    setUserPrompt('') // Clear prompt
+    setAgentResponse('') // Clear response
+    setGongCalls([]) // Clear previous calls
+
+    if (!memberId) return
+
+    // Fetch latest 10 calls for the selected member
+    try {
+      setIsLoadingCalls(true)
+      setError(null)
+      Sentry.logger.info('Fetching calls for user', { userId: memberId })
+      const response = await fetch(`/api/gong/calls?userId=${memberId}&limit=10`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch calls')
+      }
+      const data = await response.json()
+      setGongCalls(data.calls || [])
+      Sentry.logger.info('Successfully loaded calls', { userId: memberId, count: data.calls?.length || 0 })
+    } catch (err) {
+      setError('Failed to load calls for this user.')
+      Sentry.logger.error('Error fetching calls', { userId: memberId, error: err instanceof Error ? err.message : 'Unknown' })
+      Sentry.captureException(err)
+    } finally {
+      setIsLoadingCalls(false)
+    }
   }
 
   const handleCallChange = (callId: string) => {
     setSelectedCall(callId)
-    setAnalysis('') // Clear previous analysis
-
-    // TODO: Fetch actual transcript from Gong API
-    // For now, set a mock transcript
-    const mockTranscript = `[Mock Transcript for Call ID: ${callId}]
-
-This is a placeholder transcript. In a real implementation, this would be fetched from the Gong API based on the selected call.
-
-The transcript would contain the full conversation from the selected call, including timestamps and speaker identification.`
-
-    setTranscript(mockTranscript)
+    setAgentResponse('') // Clear previous response
+    setUserPrompt('') // Clear prompt
   }
 
   const handleAnalyze = async () => {
-    if (!transcript.trim() || isAnalyzing) return
+    if (!selectedCall || !userPrompt.trim() || isAnalyzing) return
 
     setIsAnalyzing(true)
-    setAnalysis('')
+    setAgentResponse('')
+
+    Sentry.logger.info('Starting transcript analysis', {
+      callId: selectedCall,
+      promptLength: userPrompt.length,
+    })
 
     try {
+      // First, fetch the transcript for the selected call
+      const transcriptResponse = await fetch(`/api/gong/transcript?callId=${selectedCall}`)
+      if (!transcriptResponse.ok) {
+        throw new Error('Failed to fetch transcript')
+      }
+      const transcriptData = await transcriptResponse.json()
+      const transcript = transcriptData.transcript || ''
+
+      Sentry.logger.info('Transcript fetched, starting AI analysis', {
+        callId: selectedCall,
+        transcriptLength: transcript.length,
+      })
+
+      // Now analyze the transcript with the user's prompt
+      const analysisPrompt = `${userPrompt}\n\nCall Transcript:\n${transcript}`
+
       const response = await fetch('/api/analyze-transcript', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ transcript: transcript.trim() })
+        body: JSON.stringify({ transcript: analysisPrompt })
       })
 
       if (!response.ok) {
@@ -120,10 +174,11 @@ The transcript would contain the full conversation from the selected call, inclu
 
               if (parsed.type === 'text_delta') {
                 streamingContent += parsed.text
-                setAnalysis(streamingContent)
+                setAgentResponse(streamingContent)
               } else if (parsed.type === 'error') {
                 streamingContent = 'Sorry, I encountered an error analyzing the transcript.'
-                setAnalysis(streamingContent)
+                setAgentResponse(streamingContent)
+                Sentry.logger.error('AI analysis error received')
               }
             } catch {
               // Ignore parse errors for incomplete chunks
@@ -131,8 +186,18 @@ The transcript would contain the full conversation from the selected call, inclu
           }
         }
       }
-    } catch {
-      setAnalysis('Sorry, I encountered an error. Please check your Claude credentials are configured correctly.')
+
+      Sentry.logger.info('Analysis completed successfully', {
+        callId: selectedCall,
+        responseLength: streamingContent.length,
+      })
+    } catch (err) {
+      setAgentResponse('Sorry, I encountered an error. Please check your configuration and try again.')
+      Sentry.logger.error('Error during analysis', {
+        callId: selectedCall,
+        error: err instanceof Error ? err.message : 'Unknown',
+      })
+      Sentry.captureException(err)
     } finally {
       setIsAnalyzing(false)
     }
@@ -149,6 +214,13 @@ The transcript would contain the full conversation from the selected call, inclu
 
       {/* Content Area */}
       <div className="flex-1 overflow-auto p-4 sm:p-6 md:p-8 space-y-4 md:space-y-6">
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-900/20 border border-red-500/50 rounded-lg px-4 py-3 text-red-200 text-sm">
+            {error}
+          </div>
+        )}
+
         {/* Gong Member and Call Selection */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Member Dropdown */}
@@ -159,9 +231,12 @@ The transcript would contain the full conversation from the selected call, inclu
             <select
               value={selectedMember}
               onChange={(e) => handleMemberChange(e.target.value)}
-              className="w-full bg-white text-[#1a2520] text-sm md:text-base rounded-lg px-3 py-2.5 md:px-4 md:py-3 border border-[#3d4a30] focus:border-[#87A96B] focus:outline-none"
+              disabled={isLoadingUsers}
+              className="w-full bg-white text-[#1a2520] text-sm md:text-base rounded-lg px-3 py-2.5 md:px-4 md:py-3 border border-[#3d4a30] focus:border-[#87A96B] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <option value="">Choose a member...</option>
+              <option value="">
+                {isLoadingUsers ? 'Loading users...' : 'Choose a member...'}
+              </option>
               {gongMembers.map((member) => (
                 <option key={member.id} value={member.id}>
                   {member.name}
@@ -178,11 +253,13 @@ The transcript would contain the full conversation from the selected call, inclu
             <select
               value={selectedCall}
               onChange={(e) => handleCallChange(e.target.value)}
-              disabled={!selectedMember}
+              disabled={!selectedMember || isLoadingCalls}
               className="w-full bg-white text-[#1a2520] text-sm md:text-base rounded-lg px-3 py-2.5 md:px-4 md:py-3 border border-[#3d4a30] focus:border-[#87A96B] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <option value="">Choose a call...</option>
-              {selectedMember && gongCalls[selectedMember as keyof typeof gongCalls]?.map((call) => (
+              <option value="">
+                {isLoadingCalls ? 'Loading calls...' : 'Choose a call...'}
+              </option>
+              {gongCalls.map((call) => (
                 <option key={call.id} value={call.id}>
                   {call.title} ({call.date})
                 </option>
@@ -210,46 +287,46 @@ The transcript would contain the full conversation from the selected call, inclu
           </select>
         </div>
 
-        {/* Input Section */}
+        {/* Prompt Input Section */}
         <div className="space-y-2">
           <label className="text-sm md:text-base text-[#c4d4b0] font-medium">
-            Transcript:
+            Your Prompt:
           </label>
           <textarea
-            value={transcript}
-            onChange={(e) => setTranscript(e.target.value)}
-            placeholder="Paste your transcript here..."
-            className="w-full h-48 sm:h-56 md:h-64 bg-white text-[#1a2520] text-sm md:text-base rounded-lg px-3 py-3 md:px-4 md:py-3 border border-[#3d4a30] focus:border-[#87A96B] focus:outline-none resize-none placeholder:text-[#2a5a3b]"
-            disabled={isAnalyzing}
+            value={userPrompt}
+            onChange={(e) => setUserPrompt(e.target.value)}
+            placeholder="Ask a question about this call (e.g., 'Provide Sentry best practices based on this conversation')"
+            className="w-full h-32 bg-white text-[#1a2520] text-sm md:text-base rounded-lg px-3 py-3 md:px-4 md:py-3 border border-[#3d4a30] focus:border-[#87A96B] focus:outline-none resize-none placeholder:text-[#6b7c6b]"
+            disabled={isAnalyzing || !selectedCall}
           />
         </div>
 
         {/* Analyze Button */}
         <button
           onClick={handleAnalyze}
-          disabled={isAnalyzing || !transcript.trim()}
+          disabled={isAnalyzing || !selectedCall || !userPrompt.trim()}
           className="w-full px-4 py-3 md:px-6 md:py-3 bg-[#87A96B] hover:bg-[#9DC88D] disabled:bg-[#3d4a30] disabled:cursor-not-allowed rounded-lg transition-colors flex items-center justify-center gap-2 text-white font-medium"
         >
           {isAnalyzing ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
-              <span className="text-sm md:text-base">Analyzing...</span>
+              <span className="text-sm md:text-base">Analyzing Call...</span>
             </>
           ) : (
             <>
               <Send className="w-5 h-5" />
-              <span className="text-sm md:text-base">Analyze Transcript</span>
+              <span className="text-sm md:text-base">Analyze Selected Call</span>
             </>
           )}
         </button>
 
-        {/* Analysis Results */}
-        {analysis && (
+        {/* Agent Response */}
+        {agentResponse && (
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <Bot className="w-5 h-5 text-[#87A96B]" />
               <label className="text-sm md:text-base text-[#c4d4b0] font-medium">
-                Analysis:
+                Agent Response:
               </label>
             </div>
             <div className="bg-[#2a3832] rounded-lg px-4 py-4 md:px-5 md:py-5 border border-[#3d4a30]">
@@ -314,7 +391,7 @@ The transcript would contain the full conversation from the selected call, inclu
                     },
                   }}
                 >
-                  {analysis}
+                  {agentResponse}
                 </ReactMarkdown>
               </div>
             </div>
